@@ -85,7 +85,7 @@ jobs:
       - name: Determine Tags
         id: tags
         env:
-          IMAGE_TAGS: "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }},${{ env.IMAGE_NAME }}:latest"
+          IMAGE_TAGS: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
         run: |-
           echo "::set-output name=tags::`echo "$IMAGE_TAGS" | tr '[:upper:]' '[:lower:]'`"
 
@@ -112,4 +112,4 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${{ steps.tags.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: echo "${{ steps.tags.outputs.tags }}" | xargs -L1 -d ',' | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
