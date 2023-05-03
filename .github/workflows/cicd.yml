@@ -82,16 +82,21 @@ jobs:
         run: |-
           echo "::set-output name=version::`git rev-parse --short HEAD`-`git rev-parse --abbrev-ref HEAD`"
 
+      - name: Determine Tags
+        id: tags
+        env:
+          IMAGE_TAGS: "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }},${{ env.IMAGE_NAME }}:latest"
+        run: |-
+          echo "::set-output name=tags::`echo "$IMAGE_TAGS" | tr '[:upper:]' '[:lower:]'`"
+
       # Build and push Docker image with Buildx (don't push on PR)
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
-        env:
-          IMAGE_TAGS: "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }},${{ env.IMAGE_NAME }}:latest"
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: ${{ steps.tags.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -105,7 +110,6 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           COSIGN_EXPERIMENTAL: "true"
-          IMAGE_TAGS: "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }},${{ env.IMAGE_NAME }}:latest"
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${{ env.IMAGE_TAGS }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: echo "${{ steps.tags.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
